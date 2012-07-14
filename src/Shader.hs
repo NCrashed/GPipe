@@ -18,8 +18,11 @@ module Shader (
     rasterizeVertex,
     inputVertex,
     fragmentFrontFacing,
-    Vertex(),
-    Fragment(),
+    Shader(),
+    V, 
+    F,
+    Vertex,
+    Fragment,
     ShaderInfo,
     getShaders,
     Real'(..),
@@ -138,17 +141,7 @@ instance (GPU a, GPU b) => GPU (a:.b) where
     type CPU (a:.b) = CPU a :. CPU b
     toGPU (a:.b) = toGPU a :. toGPU b
 
--- TODO: Remove when GHC 7.4 is in haskell platform
-instance Eq (Shader c a) where
-  (==) = noFun "(==)"
-  (/=) = noFun "(/=)" 
-instance Show (Shader c a) where
-  show      = noFun "show"
-
-instance Ord (Shader c Float) where
-  (<=) = noFun "(<=)"
-  min = binaryFunc float "min"
-  max = binaryFunc float "max"
+ 
 instance Num (Shader c Float) where
   negate      = unaryPreOp float "-"
   (+)         = binaryOp float "+"
@@ -157,18 +150,14 @@ instance Num (Shader c Float) where
   abs         = unaryFunc float "abs"
   signum      = unaryFunc float "sign"
   
-
-instance Ord (Shader c Int) where
-  (<=) = noFun "(<=)"
-  min = noFun "min"
-  max = noFun "max"
+  
 instance Num (Shader c Int) where
   negate      = unaryPreOp int "-"
   (+)         = binaryOp int "+"
   (*)         = binaryOp int "*"
   fromInteger = Shader . ShaderConstant . ConstInt . fromInteger
-  abs         = noFun "abs"
-  signum      = noFun "sign"
+  abs x       = ifB (x <* 0) (-x) x
+  signum x    = ifB (x <* 0) (-1) 1
     
 instance Fractional (Shader c Float) where
   (/)          = binaryOp float "/"
@@ -185,16 +174,16 @@ instance Floating (Shader c Float) where
   asin  = unaryFunc float "asin"
   acos  = unaryFunc float "acos"
   atan  = unaryFunc float "atan"
-  sinh  = noFun float "sinh"
-  cosh  = noFun float "cosh"
-  asinh = noFun float "asinh"
-  atanh = noFun float "atanh"
-  acosh = noFun float "acosh"
+  sinh x = (exp x - exp (-x)) / 2 
+  cosh x = (exp x + exp (-x)) / 2
+  asinh x = log (x + sqrt (x * x + 1))
+  atanh x = log ((1 + x) / (1 - x)) / 2
+  acosh x = log (x + sqrt (x * x - 1))
  
 -- | This class provides the GPU functions either not found in Prelude's numerical classes, or that has wrong types.
 --   Instances are also provided for normal 'Float's and 'Double's.
 --   Minimal complete definition: 'floor'' and 'ceiling''.
-class (Ord a, Floating a) => Real' a where
+class Floating a => Real' a where
   rsqrt :: a -> a
   exp2 :: a -> a
   log2 :: a -> a
@@ -211,21 +200,24 @@ class (Ord a, Floating a) => Real' a where
   rsqrt = (1/) . sqrt
   exp2 = (2**)
   log2 = logBase 2
-  clamp x a = min (max x a)
   saturate x = clamp x 0 1
   mix x y a = x*(1-a)+y*a
-  step a x | x < a     = 0
-           | otherwise = 1
   smoothstep a b x = let t = saturate ((x-a) / (b-a))
                      in t*t*(3-2*t)
   fract' x = x - floor' x
   mod' x y = x - y* floor' (x/y)
   
 instance Real' Float where
+  clamp x a = min (max x a)
+  step a x | x < a     = 0
+           | otherwise = 1
   floor' = fromIntegral . floor
   ceiling' = fromIntegral . ceiling
 
 instance Real' Double where
+  clamp x a = min (max x a)
+  step a x | x < a     = 0
+           | otherwise = 1
   floor' = fromIntegral . floor
   ceiling' = fromIntegral . ceiling
   
@@ -341,11 +333,17 @@ dotF2 a b = binaryFunc float "dot" (fromVec "vec2" a) (fromVec "vec2" b)
 crossF3 :: Vec3 (Shader c  Float) -> Vec3 (Shader c  Float) -> Vec3 (Shader c  Float)
 crossF3 a b = toVec float 3 $ binaryFunc "vec3" "cross" (fromVec "vec3" a) (fromVec "vec3" b)
 
+
+{-# RULES "minB/F" minB = minS #-}
+{-# RULES "maxB/F" maxB = maxS #-}
+minS :: Shader a Float -> Shader a Float -> Shader a Float 
+minS = binaryFunc float "min"
+maxS :: Shader a Float -> Shader a Float -> Shader a Float 
+maxS = binaryFunc float "max"
+
 --------------------------------------
 -- Private
 --
-noFun :: String -> a
-noFun = error . (++ ": No overloading for Shader")
 
 setVaryings xs = setVaryings' 0 $ map (('t':) . show) xs
     where 
