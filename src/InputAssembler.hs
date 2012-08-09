@@ -94,5 +94,4 @@ toIndexedGPUStream p xs i = let (a, fs) = getVertexInput xs
 getVertexInput :: forall a. VertexInput a => [CPU a] -> (a, [[Float]])
 getVertexInput xs = let readInput :: CPU a -> (a, [Float])
                         readInput = flip runState [] . runKleisli (fromInputAssembler (toVertex :: InputAssembler (CPU a) a))
-                        e = "The method toVertex of an instance of Graphics.GPipe.Stream.Primitive.VertexInput is strict in it's input. Remember that 'toVertex undefined >> a' must be equal to 'a'. Contact the GPipe author for more information."
-                        in (fst $ readInput (error e :: CPU a), map (reverse . snd  . readInput) xs)
+                        in (fst $ readInput $ head xs, map (reverse . snd  . readInput) xs)

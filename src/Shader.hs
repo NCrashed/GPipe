@@ -71,14 +71,17 @@ data ShaderTree = ShaderUniform !Uniform
                 | ShaderOp !Op (String -> [String] -> String) [ShaderTree]
 type ShaderDAG = ([Int],[(ShaderTree, [Int])])
 
+-- | An opaque type constructor for atomic values in a specific GPU context (i.e. 'V' or 'F'), e.g. 'Shader' 'V' 'Float'.
 newtype Shader c t = Shader { fromS :: ShaderTree }
 
+-- | Used to denote a vertex context in the first parameter to 'Shader'
 data V
+-- | Used to denote a fragment context in the first parameter to 'Shader'
 data F 
 
--- | An opaque type constructor for atomic values in a vertex on the GPU, e.g. 'Vertex' 'Float'.
+-- | A type synonyme for atomic values in a vertex on the GPU, e.g. 'Vertex' 'Float'.
 type Vertex = Shader V
--- | An opaque type constructor for atomic values in a fragment on the GPU, e.g. 'Fragment' 'Float'. 
+-- | A type synonyme for atomic values in a fragment on the GPU, e.g. 'Fragment' 'Float'. 
 type Fragment = Shader F
 
 rasterizeVertex :: Vertex Float -> Fragment Float
