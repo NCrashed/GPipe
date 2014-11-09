@@ -54,7 +54,7 @@ module Resources (
 ) where
 
 import Graphics.Rendering.OpenGL hiding (Sampler3D, Sampler2D, Sampler1D, SamplerCube, Point, Linear, Clamp, Uniform)
-import qualified Data.HashTable as HT
+import qualified Data.HashTable.IO as HT
 import qualified Graphics.UI.GLUT as GLUT
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -132,8 +132,8 @@ pCacheInsert (k3, k1) (k4, k2) v = TrieMap.alter' ins2 k1
           ins4 Nothing   = Just $ TrieMap.singleton k4 v
           ins4 (Just m4) = Just $ TrieMap.insert k4 v m4
           
-type VBCache = HT.HashTable ([Int], StableName [[Float]]) VertexBuffer
-type IBCache = HT.HashTable (StableName [Int]) IndexBuffer
+type VBCache = HT.BasicHashTable ([Int], StableName [[Float]]) VertexBuffer
+type IBCache = HT.BasicHashTable (StableName [Int]) IndexBuffer
 data ContextCache = ContextCache {programCache :: ProgramCache,
                                   vbCache :: VBCache,
                                   ibCache :: IBCache,
@@ -142,8 +142,8 @@ data ContextCache = ContextCache {programCache :: ProgramCache,
 newContextCache :: GLUT.Window -> IO ContextCache
 newContextCache w = do
     pc <- newIORef TrieMap.empty
-    vbc <- HT.new (==) (\(a,b) -> HT.hashString (map toEnum a) `xor` HT.hashInt (hashStableName b))
-    ibc <- HT.new (==) (HT.hashInt . hashStableName)
+    vbc <- HT.new --(==) (\(a,b) -> HT.hashString (map toEnum a) `xor` HT.hashInt (hashStableName b)) TODO: check Hashable instance for the keys
+    ibc <- HT.new --(==) (HT.hashInt . hashStableName)
     let cache = ContextCache pc vbc ibc w (Size 0 0)
     saveContextCache cache
     return cache

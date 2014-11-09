@@ -46,7 +46,7 @@ import Data.Maybe
 import Data.Boolean
 import Data.Map (Map)
 import qualified Data.Map as Map hiding (Map)
-import qualified Data.HashTable as HT
+import qualified Data.HashTable.IO as HT
 import Control.Exception (evaluate)
 import System.Mem.StableName
 import Data.IntSet (IntSet)
