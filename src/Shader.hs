@@ -394,7 +394,7 @@ createDAG :: [ShaderTree] -> ShaderDAG
 createDAG = second reverse . unsafePerformIO . startDAG
     where startDAG xs = do ht <- HT.new (==) (fromIntegral . hashStableName)
                            runStateT (mapM (createDAG' ht) xs) []
-          createDAG' :: HT.HashTable (StableName ShaderTree) Int -> ShaderTree -> StateT [(ShaderTree, [Int])] IO Int
+          createDAG' :: HT.BasicHashTable (StableName ShaderTree) Int -> ShaderTree -> StateT [(ShaderTree, [Int])] IO Int
           createDAG' ht n = do n' <- liftIO $ evaluate n -- To make makeStableName "stable"
                                k <- liftIO $ makeStableName n'
                                m <- liftIO $ HT.lookup ht k

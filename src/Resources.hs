@@ -157,8 +157,9 @@ setContextWindow = do w <- asks contextWindow
 
 type ContextCacheIO = ReaderT ContextCache IO
 
-createShaderResource :: Shader s => String -> IO s
-createShaderResource str = do [s] <- genObjectNames 1
+createShaderResource :: ShaderType -> String -> IO Shader
+createShaderResource t str = do 
+                              s <- createShader t
                               -- putStrLn $ "Created shader " ++ show s
                               shaderSource s $= [str]
                               compileShader s
@@ -174,11 +175,11 @@ createProgramResource vkey vstr fkey fstr s = do
                                        case pCacheLookup vkey fkey m of
                                             Just p -> return p
                                             Nothing -> liftIO $ do
-                                                 [p] <- genObjectNames 1
+                                                 p <- createProgram
                                                  -- putStrLn $ "Created program " ++ show p
-                                                 vs <- createShaderResource vstr
-                                                 fs <- createShaderResource fstr
-                                                 attachedShaders p $= ([vs],[fs])
+                                                 vs <- createShaderResource VertexShader vstr
+                                                 fs <- createShaderResource FragmentShader fstr
+                                                 attachedShaders p $= [vs,fs]
                                                  mapM_
                                                      (\i -> attribLocation p ('v' : show i) $= AttribLocation i)
                                                      [0..fromIntegral ((s-1) `div` 4)]
@@ -277,14 +278,27 @@ useUniforms (fu,iu,bu,su) (f,i,b,s) = do
             withArray ss $ uniformv (su Map.! t) (fromIntegral $ length ss)
         createSampler w t ((Sampler f e,tex),i) = do
             activeTexture $= TextureUnit i
-            bindWinMappedTexture (target t) w tex t
-            textureFilter (target t) $= toGLFilter f
-            mapM_ (\c -> textureWrapMode (target t) c $= toGLWrap e) [S, T, R]
-            return $ TexCoord1 (fromIntegral i::GLint)
-        target Sampler3D = Texture3D
-        target Sampler2D = Texture2D
-        target Sampler1D = Texture1D
-        target SamplerCube = TextureCubeMap
+            case t of
+              Sampler3D -> do
+                bindWinMappedTexture Texture3D w tex t
+                textureFilter Texture3D $= toGLFilter f
+                mapM_ (\c -> textureWrapMode Texture3D c $= toGLWrap e) [S, T, R]
+                return $ TexCoord1 (fromIntegral i::GLint)
+              Sampler2D -> do
+                bindWinMappedTexture Texture2D w tex t
+                textureFilter Texture2D $= toGLFilter f
+                mapM_ (\c -> textureWrapMode Texture2D c $= toGLWrap e) [S, T, R]
+                return $ TexCoord1 (fromIntegral i::GLint)
+              Sampler1D -> do
+                bindWinMappedTexture Texture1D w tex t
+                textureFilter Texture1D $= toGLFilter f
+                mapM_ (\c -> textureWrapMode Texture1D c $= toGLWrap e) [S, T, R]
+                return $ TexCoord1 (fromIntegral i::GLint)
+              SamplerCube -> do
+                bindWinMappedTexture TextureCubeMap w tex t
+                textureFilter TextureCubeMap $= toGLFilter f
+                mapM_ (\c -> textureWrapMode TextureCubeMap c $= toGLWrap e) [S, T, R]
+                return $ TexCoord1 (fromIntegral i::GLint)
 
 useVertexBuffer :: VertexBuffer -> IO ()
 useVertexBuffer (VertexBuffer b s) = do bindBuffer ArrayBuffer $= Just b
@@ -383,7 +397,8 @@ newWinMappedTexture ionew = do
     where
         deleteTexture (w,t) = do GLUT.currentWindow $= Just w
                                  deleteObjectNames [t]
-                                   
+  
+bindWinMappedTexture :: (ParameterizedTextureTarget t, BindableTextureTarget t, QueryableTextureTarget t) => t -> GLUT.Window -> WinMappedTexture -> SamplerType -> IO ()
 bindWinMappedTexture target w ref s  = do
     mtex <- atomicModifyIORef ref (\a -> (a, takeOne a))
     case mtex of
@@ -391,7 +406,7 @@ bindWinMappedTexture target w ref s  = do
         Left (w',t) -> do GLUT.currentWindow $= Just w'
                           textureBinding target $= Just t
                           ft <- get $ textureLevelRange target
-                          f <- get $ textureInternalFormat (Left target) 0
+                          f <- get $ textureInternalFormat target 0
                           swapBytes Unpack $= False
                           lsbFirst Unpack $= False
                           rowLength Unpack $= 0
@@ -412,61 +427,66 @@ bindWinMappedTexture target w ref s  = do
                           textureLevelRange target $= ft
                           -- putStrLn $ "Transferred texture " ++ show tex
                           atomicModifyIORef ref (flip (,) () . Map.insertWith (const id) w tex)
-    where takeOne a = case Map.lookup w a of
-                        Nothing -> Left $ Map.elemAt 0 a
-                        Just t -> Right t
-          createTexInWin = do GLUT.currentWindow $= Just w
-                              [tex] <- genObjectNames 1
-                              textureBinding target $= Just tex
-                              return tex
-          transferTexture Sampler3D (from,to) f = do
-                psSize <- mapM getDataAndSize3D [from..to]
-                tex <- createTexInWin
-                mapM_ (setDataWithSize3D f) $ zip psSize [from..to]
-                return tex
-          transferTexture Sampler2D (from,to) f = do
-                psSize <- mapM getDataAndSize2D [from..to]
-                tex <- createTexInWin
-                mapM_ (setDataWithSize2D f) $ zip psSize [from..to]
-                return tex
-          transferTexture Sampler1D (from,to) f = do
-                psSize <- mapM getDataAndSize1D [from..to]
-                tex <- createTexInWin
-                mapM_ (setDataWithSize1D f) $ zip psSize [from..to]
-                return tex
-          transferTexture SamplerCube (from,to) f =  do
-                psSize <- mapM getDataAndSizeCube [(n,side) | n <- [from..to], side <- cubeMapTargets]
-                tex <- createTexInWin
-                mapM_ (setDataWithSizeCube f) $ zip psSize [(n,side) | n <- [from..to], side <- cubeMapTargets]
-                return tex
-
-          getDataAndSize3D n = do
-                s@(TextureSize3D x y z) <- get $ textureSize3D (Left Texture3D) n
-                fp <- mallocForeignPtrBytes (fromIntegral x * fromIntegral y * fromIntegral z * 4 * sizeOf (undefined :: Float))
-                withForeignPtr fp $ \ p -> getTexImage (Left Texture3D) n (PixelData RGBA Float p)
-                return (s,fp)
-          setDataWithSize3D f ((s,fp),n) =
-                withForeignPtr fp $ \ p -> texImage3D NoProxy n f s 0 (PixelData RGBA Float p)
-          getDataAndSize2D n = do
-                s@(TextureSize2D x y) <- get $ textureSize2D (Left Texture2D) n
-                fp <- mallocForeignPtrBytes (fromIntegral x * fromIntegral y * 4 * sizeOf (undefined :: Float))
-                withForeignPtr fp $ \ p -> getTexImage (Left Texture2D) n (PixelData RGBA Float p)
-                return (s,fp)
-          setDataWithSize2D f ((s,fp),n) =
-                withForeignPtr fp $ \ p -> texImage2D Nothing NoProxy n f s 0 (PixelData RGBA Float p)
-          getDataAndSize1D n = do
-                s@(TextureSize1D x) <- get $ textureSize1D (Left Texture1D) n
-                fp <- mallocForeignPtrBytes (fromIntegral x * 4 * sizeOf (undefined :: Float))
-                withForeignPtr fp $ \ p -> getTexImage (Left Texture2D) n (PixelData RGBA Float p)
-                return (s,fp)
-          setDataWithSize1D f ((s,fp),n) =
-                withForeignPtr fp $ \ p -> texImage1D NoProxy n f s 0 (PixelData RGBA Float p)
-          getDataAndSizeCube (n,side) = do
-                s@(TextureSize2D x y) <- get $ textureSize2D (Right side) n
-                fp <- mallocForeignPtrBytes (fromIntegral x * fromIntegral y * 4 * sizeOf (undefined :: Float))
-                withForeignPtr fp $ \ p -> getTexImage (Right side) n (PixelData RGBA Float p)
-                return (s,fp)
-          setDataWithSizeCube f ((s,fp),(n,side)) =
-                withForeignPtr fp $ \ p -> texImage2D (Just side) NoProxy n f s 0 (PixelData RGBA Float p)
+   where                      
+      takeOne a = case Map.lookup w a of
+                    Nothing -> Left $ Map.elemAt 0 a
+                    Just t -> Right t
+                    
+      createTexInWin = do 
+        GLUT.currentWindow $= Just w
+        [tex] <- genObjectNames 1
+        textureBinding target $= Just tex
+        return tex
+                                
+      transferTexture Sampler3D (from,to) f = do
+            psSize <- mapM getDataAndSize3D [from..to]
+            tex <- createTexInWin
+            mapM_ (setDataWithSize3D f) $ zip psSize [from..to]
+            return tex
+      transferTexture Sampler2D (from,to) f = do
+            psSize <- mapM getDataAndSize2D [from..to]
+            tex <- createTexInWin
+            mapM_ (setDataWithSize2D f) $ zip psSize [from..to]
+            return tex
+      transferTexture Sampler1D (from,to) f = do
+            psSize <- mapM getDataAndSize1D [from..to]
+            tex <- createTexInWin
+            mapM_ (setDataWithSize1D f) $ zip psSize [from..to]
+            return tex
+      transferTexture SamplerCube (from,to) f =  do
+            psSize <- mapM getDataAndSizeCube [(n,side) | n <- [from..to], side <- cubeMapTargets]
+            tex <- createTexInWin
+            mapM_ (setDataWithSizeCube f) $ zip psSize [(n,side) | n <- [from..to], side <- cubeMapTargets]
+            return tex
+      
+      getDataAndSize3D n = do
+            s@(TextureSize3D x y z) <- get $ textureSize3D Texture3D n
+            fp <- mallocForeignPtrBytes (fromIntegral x * fromIntegral y * fromIntegral z * 4 * sizeOf (undefined :: Float))
+            withForeignPtr fp $ \ p -> getTexImage Texture3D n (PixelData RGBA Float p)
+            return (s,fp)
+      setDataWithSize3D f ((s,fp),n) =
+            withForeignPtr fp $ \ p -> texImage3D Texture3D NoProxy n f s 0 (PixelData RGBA Float p)
+      getDataAndSize2D n = do
+            s@(TextureSize2D x y) <- get $ textureSize2D Texture2D n
+            fp <- mallocForeignPtrBytes (fromIntegral x * fromIntegral y * 4 * sizeOf (undefined :: Float))
+            withForeignPtr fp $ \ p -> getTexImage Texture2D n (PixelData RGBA Float p)
+            return (s,fp)
+      setDataWithSize2D f ((s,fp),n) =
+            withForeignPtr fp $ \ p -> texImage2D Texture2D NoProxy n f s 0 (PixelData RGBA Float p)
+      getDataAndSize1D n = do
+            s@(TextureSize1D x) <- get $ textureSize1D Texture1D n
+            fp <- mallocForeignPtrBytes (fromIntegral x * 4 * sizeOf (undefined :: Float))
+            withForeignPtr fp $ \ p -> getTexImage Texture2D n (PixelData RGBA Float p)
+            return (s,fp)
+      setDataWithSize1D f ((s,fp),n) =
+            withForeignPtr fp $ \ p -> texImage1D Texture1D NoProxy n f s 0 (PixelData RGBA Float p)
+      getDataAndSizeCube :: (Level, TextureTargetCubeMapFace) -> IO (TextureSize2D, ForeignPtr a)
+      getDataAndSizeCube (n,side) = do
+            s@(TextureSize2D x y) <- get $ textureSize2DCubeMap side n
+            fp <- mallocForeignPtrBytes (fromIntegral x * fromIntegral y * 4 * sizeOf (undefined :: Float))
+            withForeignPtr fp $ \ p -> getTexImage side n (PixelData RGBA Float p)
+            return (s,fp)
+      setDataWithSizeCube f ((s,fp),(n,side)) =
+            withForeignPtr fp $ \ p -> texImage2D side NoProxy n f s 0 (PixelData RGBA Float p)
 
 cubeMapTargets = [TextureCubeMapPositiveX, TextureCubeMapNegativeX, TextureCubeMapPositiveY, TextureCubeMapNegativeY, TextureCubeMapPositiveZ, TextureCubeMapNegativeZ]
