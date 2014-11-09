@@ -24,15 +24,16 @@ author: Tobias Bexelius
 
 Library
     build-depends: 
-                    containers  >= 0.4   && <0.6,
-                    list-tries  >= 0.4.1 && <0.6,
-                    GLUT        >= 2.3.0 && <2.6,
-                    OpenGL      >= 2.5.0 && <2.9,
-                    Boolean     >= 0.0.1 && <1.0,
-                    Vec         >= 1.0.1 && <2.0,
-                    Vec-Boolean >= 1.0.6 && <2.0,
-                    base        >= 4     && <5,
-                    transformers
+                    containers >= 0.4   && <0.6,
+                    list-tries >= 0.4.1 && <0.6,
+                    GLUT >= 2.3.0 && <2.6,
+                    OpenGL >= 2.9.0 && <3.0,
+                    Boolean >= 0.0.1 && <1.0,
+                    Vec >= 1.0.1 && <2.0,
+                    Vec-Boolean >= 1.1.0 && <2.0,
+                    base >= 4 && <5,
+                    hashtables >=1.1.2 && <1.2,
+                    transformers >=0.4.1 && <0.5
                        
     other-modules: 
                    Formats,
