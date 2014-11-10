@@ -33,6 +33,8 @@ module Graphics.GPipe.Format (
     CPUFormat2Comp(..),
     CPUFormat1Comp(..),
     StorableCPUFormat(),
+    toColor,
+    fromColor
 
 ) where
 
