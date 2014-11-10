@@ -238,7 +238,7 @@ instance Real' (Shader c Float) where
   step = binaryFunc float "step"
   smoothstep = ternaryFunc float "smoothstep"
   
-type instance BooleanOf (Shader c a) = Shader c (BooleanOf a)
+type instance BooleanOf (Shader c a) = Shader c Bool
 
 instance Boolean (Shader c Bool) where
     true = Shader $ ShaderConstant $ ConstBool True
@@ -246,10 +246,10 @@ instance Boolean (Shader c Bool) where
     notB = unaryPreOp bool "!"
     (&&*) = binaryOp bool "&&"
     (||*) = binaryOp bool "||"
-instance (Shader c Bool ~ BooleanOf (Shader c a), Eq a) => EqB (Shader c a) where
+instance (bool ~ BooleanOf (Shader c a), Eq a) => EqB (Shader c a) where
     (==*) = binaryOp bool "=="
     (/=*) = binaryOp bool "!="
-instance (Shader c Bool ~ BooleanOf (Shader c a), Ord a) => OrdB (Shader c a) where
+instance (bool ~ BooleanOf (Shader c a), Ord a) => OrdB (Shader c a) where
     (<*) = binaryOp bool "<"
     (>=*) = binaryOp bool ">="
     (>*) = binaryOp bool ">"
