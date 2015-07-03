@@ -30,6 +30,8 @@ module Shader (
     dFdx,
     dFdy,
     fwidth,
+    fragX,
+    fragY,
     fragDepth,
     sampleBinFunc,
     sampleTernFunc,
@@ -300,11 +302,15 @@ dFdy :: Fragment Float -> Fragment Float
 fwidth :: Fragment Float -> Fragment Float
 -- | The local fragment depth value
 fragDepth :: Fragment Float
+-- | Coordinates of fragment 
+fragX, fragY :: Fragment Float 
 
 dFdx = unaryFunc float "dFdx"
 dFdy = unaryFunc float "dFdy"
 fwidth = unaryFunc float "fwidth"
 fragDepth = shaderVar float "gl_FragCoord.z"
+fragX = shaderVar float "gl_FragCoord.x"
+fragY = shaderVar float "gl_FragCoord.y"
 
 --------------------------------------
 -- Vector specializations
