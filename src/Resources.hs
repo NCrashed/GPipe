@@ -11,7 +11,7 @@
 -- |
 --
 -----------------------------------------------------------------------------
-
+{-# LANGUAGE CPP #-}
 module Resources (
     createProgramResource,
     createVertexBuffer,
@@ -206,18 +206,29 @@ createProgramResource vkey vstr fkey fstr s = do
 createVertexBuffer :: [[Float]] -> [Int] -> [[Float]] -> ContextCacheIO VertexBuffer
 createVertexBuffer xs i v = do vName <- liftIO $ makeStableName v
                                let k = (i,vName)
+#ifdef mingw32_HOST_OS -- https://github.com/tobbebex/GPipe/issues/14
+                               let test = Nothing
+#else
                                cache <- asks vbCache
                                test <- liftIO $ HT.lookup cache k
+#endif                               
                                case test of
                                   Just b -> return b
                                   Nothing -> do
                                      w <- asks contextWindow
                                      liftIO $ do [b] <- genObjectNames 1
-                                                 -- putStrLn $ "Created vertex buffer " ++ show b
+                                                 -- putStrLn $ "Created vertex buffer " ++ show b ++  " shaders: " ++ show i ++ " values: " ++ show (length xs) ++ " " ++ show (length v)
                                                  bindBuffer ArrayBuffer $= Just b
                                                  let xsdata = map realToFrac $ concat xs :: [CFloat]
                                                  withArray xsdata (\p -> bufferData ArrayBuffer $= (fromIntegral $ sizeOf (0 :: CFloat) * length xsdata, p, StaticDraw))
                                                  let b' = VertexBuffer b $ length (head xs)
+#ifdef mingw32_HOST_OS -- https://github.com/tobbebex/GPipe/issues/14
+                                                 addFinalizer v $ do w' <- get GLUT.currentWindow
+                                                                     GLUT.currentWindow $= Just w
+                                                                     deleteObjectNames [b]
+                                                                     GLUT.currentWindow $= w'
+                                                                     -- putStrLn "Deleted vertex buffer"
+#else
                                                  HT.insert cache k b'
                                                  addFinalizer v $ do HT.delete cache k
                                                                      w' <- get GLUT.currentWindow
@@ -225,6 +236,7 @@ createVertexBuffer xs i v = do vName <- liftIO $ makeStableName v
                                                                      deleteObjectNames [b]
                                                                      GLUT.currentWindow $= w'
                                                                      -- putStrLn "Deleted vertex buffer"
+#endif
                                                  return b'
 
 createIndexBuffer :: [Int] -> Int -> ContextCacheIO IndexBuffer
