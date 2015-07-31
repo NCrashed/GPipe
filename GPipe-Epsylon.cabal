@@ -1,4 +1,4 @@
-name: GPipe
+name: GPipe-Epsylon
 version: 1.5.0
 cabal-version: >= 1.8
 build-type: Simple
@@ -25,14 +25,14 @@ author: Tobias Bexelius
 Library
     build-depends: 
                     containers >= 0.4   && <0.6,
-                    list-tries >= 0.4.1 && <0.6,
+                    list-tries >= 0.6.1,
                     GLUT >= 2.7.0 && <2.8,
                     OpenGL >= 2.12 && <3.0,
                     Boolean >= 0.0.1 && <1.0,
                     Vec >= 1.0.1 && <2.0,
                     Vec-Boolean >= 1.1.0 && <2.0,
                     base >= 4 && <5,
-                    hashtables >=1.1.2 && <1.2,
+                    hashtables >= 1.2.0.2,
                     transformers >=0.4.1 && <0.5
                        
     other-modules: 
