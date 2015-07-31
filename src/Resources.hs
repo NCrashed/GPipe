@@ -11,7 +11,7 @@
 -- |
 --
 -----------------------------------------------------------------------------
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, FlexibleContexts #-}
 module Resources (
     createProgramResource,
     createVertexBuffer,
@@ -206,8 +206,8 @@ createProgramResource vkey vstr fkey fstr s = do
 createVertexBuffer :: [[Float]] -> [Int] -> [[Float]] -> ContextCacheIO VertexBuffer
 createVertexBuffer xs i v = do vName <- liftIO $ makeStableName v
                                let k = (i,vName)
-#ifdef mingw32_HOST_OS -- https://github.com/tobbebex/GPipe/issues/14
-                               let test = Nothing
+#ifdef mingw32_HOST_OS 
+                               let test = Nothing -- https://github.com/tobbebex/GPipe/issues/14
 #else
                                cache <- asks vbCache
                                test <- liftIO $ HT.lookup cache k
@@ -222,8 +222,8 @@ createVertexBuffer xs i v = do vName <- liftIO $ makeStableName v
                                                  let xsdata = map realToFrac $ concat xs :: [CFloat]
                                                  withArray xsdata (\p -> bufferData ArrayBuffer $= (fromIntegral $ sizeOf (0 :: CFloat) * length xsdata, p, StaticDraw))
                                                  let b' = VertexBuffer b $ length (head xs)
-#ifdef mingw32_HOST_OS -- https://github.com/tobbebex/GPipe/issues/14
-                                                 addFinalizer v $ do w' <- get GLUT.currentWindow
+#ifdef mingw32_HOST_OS 
+                                                 addFinalizer v $ do w' <- get GLUT.currentWindow -- https://github.com/tobbebex/GPipe/issues/14
                                                                      GLUT.currentWindow $= Just w
                                                                      deleteObjectNames [b]
                                                                      GLUT.currentWindow $= w'

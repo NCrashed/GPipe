@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeOperators, TypeFamilies, FlexibleInstances, MultiParamTypeClasses, EmptyDataDecls, TypeSynonymInstances #-}
+{-# LANGUAGE TypeOperators, TypeFamilies, FlexibleInstances, MultiParamTypeClasses, EmptyDataDecls, TypeSynonymInstances, FlexibleContexts #-}
 -----------------------------------------------------------------------------
 --
 -- Module      :  Shader
@@ -38,6 +38,7 @@ module Shader (
     module Data.Boolean
 ) where
 
+import Prelude hiding ((<*))
 import Control.Monad.Trans.State.Lazy (put, get, StateT, runStateT)
 import System.IO.Unsafe
 import Data.Vec ((:.)(..), Vec2, Vec3, Vec4, norm, normalize, dot, cross)
