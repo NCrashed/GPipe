@@ -52,12 +52,13 @@ import Resources
 import Graphics.Rendering.OpenGL hiding (RGBA, Blend, stencilMask, Color, ColorBuffer, DepthBuffer, StencilBuffer, Vertex)
 import qualified Graphics.Rendering.OpenGL as GL
 import Data.Vec (vec, (:.)(..), Vec2)
-import qualified Graphics.UI.GLUT as GLUT
+--import qualified Graphics.UI.GLUT as GLUT
 import Data.Int (Int32)
 import Data.Word (Word32)
 import Foreign.Ptr (Ptr)
-import Graphics.UI.GLUT
-    (reshapeCallback, displayCallback, Window)
+--import Graphics.UI.GLUT
+--    (reshapeCallback, displayCallback, Window)
+import qualified Graphics.UI.GLFW as GLFW
 import Control.Monad (liftM)
 import Data.Maybe (fromJust)
 import Control.Exception (evaluate)
@@ -407,28 +408,35 @@ newWindow :: String     -- ^ The window title
           -> Vec2 Int   -- ^ The window position
           -> Vec2 Int   -- ^ The window size
           -> (Vec2 Int -> IO (FrameBuffer c d s)) -- ^ This function is evaluated every time the window needs to be redrawn, and the resulting 'FrameBuffer' will be drawn in the window. The parameter is the current size of the window.
-          -> (Window -> IO ()) -- ^ Extra optional initialization of the window. The provided 'Window' should not be used outside this function.
+          -> (GLFW.Window -> IO ()) -- ^ Extra optional initialization of the window. The provided 'Window' should not be used outside this function.
           -> IO ()
-newWindow name (x:.y:.()) (w:.h:.()) f xio =
-    do GLUT.initialWindowPosition $= Position (fromIntegral x) (fromIntegral y)
-       GLUT.initialWindowSize $= Size (fromIntegral w) (fromIntegral h)
-       GLUT.initialDisplayMode $= [ GLUT.DoubleBuffered, GLUT.RGBMode, GLUT.WithAlphaComponent, GLUT.WithDepthBuffer, GLUT.WithStencilBuffer] --Enable everything, it might be needed for textures 
-       w <- GLUT.createWindow name
-       xio w
-       newContextCache w
-       displayCallback $= do cache <- liftM fromJust $ getContextCache w --We need to do this to get the correct size
-                             let Size x y = contextViewPort cache
-                             FrameBuffer io <- f (fromIntegral x :. fromIntegral y :. ())
-                             runReaderT io cache
-                             GLUT.swapBuffers
-       reshapeCallback $= Just (changeContextSize w)
+newWindow name (x:.y:.()) (sw:.sh:.()) f xio = do
+  GLFW.defaultWindowHints
+  GLFW.windowHint $ GLFW.WindowHint'Visible True 
+  GLFW.windowHint $ GLFW.WindowHint'AlphaBits 32
+  GLFW.windowHint $ GLFW.WindowHint'DepthBits 32
+  GLFW.windowHint $ GLFW.WindowHint'StencilBits 32
+  mw <- GLFW.createWindow sw sh name Nothing Nothing
+  case mw of 
+    Nothing -> error "Failed to create window"
+    Just w -> do 
+      GLFW.setWindowPos w x y 
+      xio w
+      newContextCache w
+      GLFW.setWindowRefreshCallback w $ Just $ \_ -> do 
+        cache <- liftM fromJust $ getContextCache w --We need to do this to get the correct size
+        let (x, y) = contextViewPort cache
+        FrameBuffer io <- f (fromIntegral x :. fromIntegral y :. ())
+        runReaderT io cache
+        GLFW.swapBuffers w
+      GLFW.setWindowSizeCallback w $ Just changeContextSize
 
 
 runFrameBufferInContext :: ContextCache -> Vec2 Int -> FrameBuffer c d s -> IO ()
 runFrameBufferInContext c (a:.b:.()) (FrameBuffer io) = do
     a' <- evaluate a
     b' <- evaluate b
-    runReaderT io $ c {contextViewPort = Size (fromIntegral a') (fromIntegral b')}
+    runReaderT io $ c {contextViewPort = (a', b')}
     finish
 --------------------------------------
 -- Private
