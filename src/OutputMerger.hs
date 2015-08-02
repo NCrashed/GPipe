@@ -423,6 +423,7 @@ newWindow name (x:.y:.()) (sw:.sh:.()) f xio = do
       GLFW.setWindowPos w x y 
       xio w
       newContextCache w
+      changeContextSize w sw sh
       GLFW.setWindowSizeCallback w $ Just changeContextSize
       return (w, render w)
   where 

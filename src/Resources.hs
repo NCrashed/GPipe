@@ -151,9 +151,9 @@ newContextCache w = do
 
 setContextWindow :: ContextCacheIO ()
 setContextWindow = do w <- asks contextWindow
-                      --s <- asks contextViewPort
+                      (x, y) <- asks contextViewPort
                       liftIO $ do GLFW.makeContextCurrent $ Just w
-                                  --viewport $= (Position 0 0, s)                     
+                                  viewport $= (Position 0 0, Size (fromIntegral x) (fromIntegral y))                     
 
 
 type ContextCacheIO = ReaderT ContextCache IO
