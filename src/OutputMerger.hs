@@ -409,7 +409,7 @@ newWindow :: String     -- ^ The window title
           -> Vec2 Int   -- ^ The window size
           -> (Vec2 Int -> IO (FrameBuffer c d s)) -- ^ This function is evaluated every time the window needs to be redrawn, and the resulting 'FrameBuffer' will be drawn in the window. The parameter is the current size of the window.
           -> (GLFW.Window -> IO ()) -- ^ Extra optional initialization of the window. The provided 'Window' should not be used outside this function.
-          -> IO ()
+          -> IO GLFW.Window
 newWindow name (x:.y:.()) (sw:.sh:.()) f xio = do
   GLFW.defaultWindowHints
   GLFW.windowHint $ GLFW.WindowHint'Visible True 
@@ -430,6 +430,7 @@ newWindow name (x:.y:.()) (sw:.sh:.()) f xio = do
         runReaderT io cache
         GLFW.swapBuffers w
       GLFW.setWindowSizeCallback w $ Just changeContextSize
+      return w
 
 
 runFrameBufferInContext :: ContextCache -> Vec2 Int -> FrameBuffer c d s -> IO ()
