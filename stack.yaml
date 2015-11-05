@@ -4,13 +4,13 @@ packages:
 - location:
     git: git@github.com:NCrashed/Vec-Boolean.git
     commit: 2a29f3cdc7bbbcc99e1af96733ec8b15592484b2
-#- location:
-#    git: git@github.com:NCrashed/OpenGL.git
-#    commit: 050b130119729ff459be38b59ddc9b1de19b9c09
+- location:
+    git: git@github.com:NCrashed/OpenGL.git
+    commit: a330ea7fdb1abbc36eb0d94d9f5f981b444f8e46
 extra-deps: 
 - Vec-1.0.5
 - list-tries-0.6.1
 - GLFW-b-1.4.7.2
 - bindings-GLFW-3.1.1.3
-- OpenGL-2.13.1.0
+
 resolver: lts-3.12
