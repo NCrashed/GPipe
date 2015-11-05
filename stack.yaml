@@ -12,4 +12,4 @@ extra-deps:
 - list-tries-0.6.1
 - GLFW-b-1.4.7.2
 - bindings-GLFW-3.1.1.3
-resolver: nightly-2015-07-30
+resolver: lts-3.12
