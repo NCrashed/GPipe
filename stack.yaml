@@ -4,9 +4,9 @@ packages:
 - location:
     git: git@github.com:NCrashed/Vec-Boolean.git
     commit: 2a29f3cdc7bbbcc99e1af96733ec8b15592484b2
-- location:
-    git: git@github.com:NCrashed/OpenGL.git
-    commit: 050b130119729ff459be38b59ddc9b1de19b9c09
+#- location:
+#    git: git@github.com:NCrashed/OpenGL.git
+#    commit: 050b130119729ff459be38b59ddc9b1de19b9c09
 extra-deps: 
 - Vec-1.0.5
 - list-tries-0.6.1
